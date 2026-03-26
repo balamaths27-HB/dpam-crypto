@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>DPAM Matrix Encryption Tool</title>
+<style>
+body { font-family: Arial; padding: 20px; background:#f4f4f4; }
+.container { background:white; padding:20px; border-radius:10px; max-width:600px; margin:auto; }
+textarea { width:100%; height:80px; margin-top:10px; }
+button { margin-top:10px; padding:10px; width:100%; }
+.output { background:#eee; padding:10px; margin-top:10px; white-space:pre-wrap; }
+</style>
+</head>
+<body>
+<div class="container">
+<h2>DPAM Matrix Encryption</h2>
+
+<label>Enter Message:</label>
+<textarea id="msg"></textarea>
+<button onclick="encrypt()">Encrypt</button>
+<div class="output" id="enc"></div>
+
+<h2>DPAM Matrix Decryption</h2>
+<label>Paste Encrypted (Row1 \n Row2):</label>
+<textarea id="cipher"></textarea>
+<button onclick="decrypt()">Decrypt</button>
+<div class="output" id="dec"></div>
+</div>
+
+<script>
+const MOD = 256;
+const A = [[1,2],[-2,1]];
+const K = [[1,1],[1,2]];
+const K_inv = [[2,255],[255,1]];
+
+function mod(n){ return ((n%MOD)+MOD)%MOD; }
+
+function multiply(A,B){
+return [
+[mod(A[0][0]*B[0][0] + A[0][1]*B[1][0]), mod(A[0][0]*B[0][1] + A[0][1]*B[1][1])],
+[mod(A[1][0]*B[0][0] + A[1][1]*B[1][0]), mod(A[1][0]*B[0][1] + A[1][1]*B[1][1])]
+];
+}
+
+function encrypt(){
+let msg = document.getElementById("msg").value;
+
+while(msg.length % 4 !== 0) msg += "_";
+
+let row1=[], row2=[];
+
+for(let i=0;i<msg.length;i+=4){
+let nums = msg.slice(i,i+4).split('').map(c=>c.charCodeAt(0));
+let P = [[nums[0],nums[1]],[nums[2],nums[3]]];
+
+let PA = [
+[mod(P[0][0]+A[0][0]), mod(P[0][1]+A[0][1])],
+[mod(P[1][0]+A[1][0]), mod(P[1][1]+A[1][1])]
+];
+
+let C = multiply(PA,K);
+
+row1.push(C[0][0],C[0][1]);
+row2.push(C[1][0],C[1][1]);
+}
+
+document.getElementById("enc").innerText = row1.join(" ") + "\n" + row2.join(" ");
+}
+
+function decrypt(){
+let text = document.getElementById("cipher").value.trim().split("\n");
+let r1 = text[0].split(" ").map(Number);
+let r2 = text[1].split(" ").map(Number);
+
+let msg="";
+
+for(let i=0;i<r1.length;i+=2){
+let block = [[r1[i],r1[i+1]],[r2[i],r2[i+1]]];
+
+let PA = multiply(block,K_inv);
+
+let P = [
+[mod(PA[0][0]-A[0][0]), mod(PA[0][1]-A[0][1])],
+[mod(PA[1][0]-A[1][0]), mod(PA[1][1]-A[1][1])]
+];
+
+msg += String.fromCharCode(P[0][0],P[0][1],P[1][0],P[1][1]);
+}
+
+msg = msg.replace(/_+$/,'');
+document.getElementById("dec").innerText = msg;
+}
+</script>
+</body>
+</html>
